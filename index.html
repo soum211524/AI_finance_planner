@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ET Money Mentor — FIRE Path Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #30363d;
+    --border2: #21262d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --muted2: #484f58;
+    --green: #1a9e6e;
+    --green-light: #0ef0a0;
+    --green-dim: rgba(26,158,110,0.12);
+    --blue: #388bfd;
+    --blue-dim: rgba(56,139,253,0.12);
+    --amber: #d29922;
+    --amber-dim: rgba(210,153,34,0.12);
+    --red: #f85149;
+    --red-dim: rgba(248,81,73,0.1);
+    --accent: #1a9e6e;
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .logo-dot { width: 8px; height: 8px; background: var(--green-light); border-radius: 50%; box-shadow: 0 0 8px var(--green-light); }
+  .logo span { color: var(--green-light); }
+
+  .api-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  .api-badge.connected { color: var(--green-light); border-color: var(--green); }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    flex: 1;
+    gap: 0;
+  }
+
+  /* ── Left panel (inputs) ── */
+  .left-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem;
+    overflow-y: auto;
+    height: calc(100vh - 60px);
+    position: sticky;
+    top: 60px;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .section-block { margin-bottom: 1.5rem; }
+
+  .section-heading {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--green-light);
+    margin-bottom: 0.75rem;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border2);
+  }
+
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .field-full { grid-column: 1 / -1; }
+
+  .field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--green);
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .field select { cursor: pointer; }
+
+  .btn-calculate {
+    width: 100%;
+    padding: 12px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Sora', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 1rem;
+    letter-spacing: 0.01em;
+  }
+  .btn-calculate:hover { background: #138f60; transform: translateY(-1px); }
+  .btn-calculate:active { transform: translateY(0); }
+  .btn-calculate.loading { opacity: 0.7; cursor: wait; }
+
+  /* ── Right panel (results) ── */
+  .right-panel {
+    padding: 2rem;
+    overflow-y: auto;
+  }
+
+  /* ── Welcome state ── */
+  .welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 60vh;
+    text-align: center;
+  }
+  .welcome-icon {
+    font-size: 48px;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 0 20px rgba(26,158,110,0.4));
+  }
+  .welcome h2 { font-size: 22px; font-weight: 600; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+  .welcome p { font-size: 14px; color: var(--muted); max-width: 380px; line-height: 1.7; }
+  .feature-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 1.5rem; }
+  .pill {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: var(--surface2);
+  }
+
+  /* ── Results ── */
+  .results { display: none; }
+  .results.visible { display: block; }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .results-title { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+  .fire-badge {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: var(--green-dim);
+    color: var(--green-light);
+    border: 1px solid var(--green);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* KPI Strip */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+  }
+  .kpi-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .kpi-value { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .kpi-value.green { color: var(--green-light); }
+  .kpi-value.amber { color: var(--amber); }
+  .kpi-value.red { color: var(--red); }
+
+  /* Section card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 14px; }
+
+  /* SIP breakdown */
+  .sip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border2);
+  }
+  .sip-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .sip-name { font-size: 13px; color: var(--text); }
+  .sip-detail { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .sip-amount { font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700; color: var(--green-light); }
+  .sip-sub { font-size: 10px; color: var(--muted); text-align: right; }
+
+  /* Allocation bar */
+  .alloc-bar {
+    height: 8px;
+    border-radius: 4px;
+    display: flex;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+  .alloc-seg { height: 100%; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+  .alloc-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .alloc-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+  /* Insurance gap cards */
+  .gap-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border2);
+  }
+  .gap-card:last-child { border-bottom: none; }
+  .gap-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .gap-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .gap-msg { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+  .gap-action { font-size: 11px; color: var(--blue); margin-top: 4px; }
+
+  /* Tax table */
+  .tax-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border2);
+    font-size: 13px;
+  }
+  .tax-row:last-child { border-bottom: none; }
+  .tax-row .label { color: var(--muted); }
+  .tax-row .value { font-family: 'Space Mono', monospace; font-weight: 700; color: var(--green-light); }
+
+  /* Timeline */
+  .timeline { position: relative; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+  .t-item {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .t-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+    font-family: 'Space Mono', monospace;
+  }
+  .t-content { flex: 1; padding-top: 4px; }
+  .t-year { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+  .t-event { font-size: 13px; font-weight: 600; color: var(--text); margin: 2px 0; }
+  .t-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* Health score */
+  .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .score-item { background: var(--surface2); border-radius: var(--radius); padding: 10px; }
+  .score-item-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .score-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+  .score-num { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; margin-top: 4px; }
+
+  /* ── Markdown-rendered content ── */
+  .md-content { font-size: 13px; line-height: 1.75; color: var(--text); }
+  .md-content p { margin-bottom: 0.65em; }
+  .md-content p:last-child { margin-bottom: 0; }
+  .md-content strong { color: var(--green-light); font-weight: 600; }
+  .md-content em { color: var(--amber); font-style: italic; }
+  .md-content ul, .md-content ol {
+    margin: 0.5em 0 0.75em 1.25em;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .md-content ul li { list-style: none; position: relative; padding-left: 1.1em; }
+  .md-content ul li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--green-light);
+    font-size: 10px;
+    top: 3px;
+  }
+  .md-content ol li { list-style: decimal; }
+  .md-content h1, .md-content h2, .md-content h3 {
+    font-weight: 600;
+    margin: 0.9em 0 0.4em;
+    letter-spacing: -0.01em;
+  }
+  .md-content h1 { font-size: 15px; color: var(--green-light); }
+  .md-content h2 { font-size: 14px; color: var(--text); }
+  .md-content h3 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .md-content code {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--amber);
+  }
+  .md-content blockquote {
+    border-left: 2px solid var(--green);
+    padding-left: 0.75em;
+    margin: 0.5em 0;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .md-content hr {
+    border: none;
+    border-top: 1px solid var(--border2);
+    margin: 0.75em 0;
+  }
+
+  /* AI Narrative */
+  .ai-narrative {
+    background: var(--green-dim);
+    border: 1px solid rgba(26,158,110,0.25);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    position: relative;
+  }
+  .ai-narrative::before {
+    content: 'AI ANALYSIS';
+    display: block;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--green-light);
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    opacity: 0.8;
+  }
+
+  /* AI Chat */
+  .chat-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .chat-messages {
+    padding: 1rem;
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .msg {
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 10px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+  }
+  .msg-avatar.user { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(56,139,253,0.3); }
+  .msg-avatar.ai { background: var(--green-dim); color: var(--green-light); border: 1px solid rgba(26,158,110,0.3); }
+  .msg-body { font-size: 13px; color: var(--text); line-height: 1.6; flex: 1; padding-top: 4px; }
+  .msg-body.typing::after { content: '▋'; animation: blink 0.8s infinite; color: var(--green-light); }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+  .chat-footer {
+    border-top: 1px solid var(--border);
+    padding: 0.75rem;
+    display: flex;
+    gap: 8px;
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: 'Sora', sans-serif;
+  }
+  .chat-input:focus { outline: none; border-color: var(--green); }
+  .btn-ask {
+    padding: 8px 16px;
+    background: var(--green-dim);
+    color: var(--green-light);
+    border: 1px solid var(--green);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: 'Sora', sans-serif;
+  }
+  .btn-ask:hover { background: var(--green); color: #fff; }
+  .btn-ask:disabled { opacity: 0.5; cursor: wait; }
+
+  .quick-asks {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 0 0.75rem 0.75rem;
+  }
+  .quick-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Sora', sans-serif;
+  }
+  .quick-btn:hover { border-color: var(--green); color: var(--green-light); }
+
+  /* Error / info states */
+  .info-box {
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    margin-bottom: 1rem;
+  }
+  .info-box.warn { background: var(--amber-dim); border: 1px solid rgba(210,153,34,0.3); color: var(--amber); }
+  .info-box.err { background: var(--red-dim); border: 1px solid rgba(248,81,73,0.2); color: var(--red); }
+  .info-box.ok { background: var(--green-dim); border: 1px solid rgba(26,158,110,0.2); color: var(--green-light); }
+
+  .loader {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .main-layout { grid-template-columns: 1fr; }
+    .left-panel { height: auto; position: static; }
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .score-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-dot"></div>
+      ET Money Mentor &nbsp;/&nbsp; <span>FIRE Path Planner</span>
+    </div>
+    <div class="api-badge" id="api-badge">● API: checking…</div>
+  </header>
+
+  <div class="main-layout">
+
+    <!-- LEFT: Input Panel -->
+    <aside class="left-panel">
+      <div class="panel-title">Your Profile</div>
+
+      <div class="section-block">
+        <div class="section-heading">Basic info</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Current age</label>
+            <input type="number" id="age" value="28" min="18" max="55">
+          </div>
+          <div class="field">
+            <label>FIRE target age</label>
+            <input type="number" id="fire_age" value="45" min="30" max="65">
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-heading">Income & expenses</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Monthly income (₹)</label>
+            <input type="number" id="monthly_income" value="120000">
+          </div>
+          <div class="field">
+            <label>Monthly expenses (₹)</label>
+            <input type="number" id="monthly_expenses" value="55000">
+          </div>
+          <div class="field field-full">
+            <label>Tax bracket</label>
+            <select id="tax_bracket">
+              <option value="5">5%</option>
+              <option value="20">20%</option>
+              <option value="30" selected>30%</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-heading">Existing investments</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Mutual funds / stocks (₹)</label>
+            <input type="number" id="existing_investments" value="800000">
+          </div>
+          <div class="field">
+            <label>EPF + PPF balance (₹)</label>
+            <input type="number" id="epf_ppf_balance" value="200000">
+          </div>
+          <div class="field field-full">
+            <label>Current monthly SIP (₹)</label>
+            <input type="number" id="current_monthly_sip" value="15000">
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-heading">Goals</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Home purchase (₹)</label>
+            <input type="number" id="home_goal_amount" value="7500000">
+          </div>
+          <div class="field">
+            <label>By year</label>
+            <input type="number" id="home_goal_year" value="2030">
+          </div>
+          <div class="field">
+            <label>Child education (₹)</label>
+            <input type="number" id="edu_goal_amount" value="3000000">
+          </div>
+          <div class="field">
+            <label>By year</label>
+            <input type="number" id="edu_goal_year" value="2038">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-calculate" id="calc-btn" onclick="calculatePlan()">
+        Generate FIRE Plan
+      </button>
+      <div class="info-box warn" style="margin-top:10px;font-size:11px;" id="api-note">
+        Backend not connected — calculations run locally. Start FastAPI server for AI features.
+        Set <code style="font-family:monospace;">GROQ_API_KEY</code> for LLM responses.
+      </div>
+    </aside>
+
+    <!-- RIGHT: Results Panel -->
+    <main class="right-panel">
+
+      <!-- Welcome state -->
+      <div class="welcome" id="welcome-state">
+        <div class="welcome-icon">🔥</div>
+        <h2>Your path to Financial Independence</h2>
+        <p>Enter your profile on the left and generate a complete FIRE plan with SIP breakdown, asset allocation, insurance gaps, tax savings, and a month-by-month roadmap.</p>
+        <div class="feature-pills">
+          <span class="pill">SIP per goal</span>
+          <span class="pill">Asset allocation</span>
+          <span class="pill">Insurance gaps</span>
+          <span class="pill">Tax savings</span>
+          <span class="pill">FIRE timeline</span>
+          <span class="pill">Money health score</span>
+          <span class="pill">AI mentor chat</span>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="results" id="results-state">
+
+        <!-- Header -->
+        <div class="results-header">
+          <div class="results-title">Your FIRE Plan</div>
+          <div class="fire-badge" id="fire-tag">FIRE in 17 years</div>
+        </div>
+
+        <!-- AI Narrative -->
+        <div class="ai-narrative" id="ai-narrative" style="display:none;">
+          <div class="md-content" id="ai-narrative-content"></div>
+        </div>
+
+        <!-- KPI Strip -->
+        <div class="kpi-strip">
+          <div class="kpi">
+            <div class="kpi-label">Corpus needed</div>
+            <div class="kpi-value green" id="kpi-corpus">—</div>
+            <div class="kpi-sub" id="kpi-corpus-sub">at FIRE age</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Monthly SIP needed</div>
+            <div class="kpi-value" id="kpi-sip">—</div>
+            <div class="kpi-sub" id="kpi-sip-sub">total across goals</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Savings rate</div>
+            <div class="kpi-value" id="kpi-savings">—</div>
+            <div class="kpi-sub">target: 40%+</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">SIP gap</div>
+            <div class="kpi-value" id="kpi-gap">—</div>
+            <div class="kpi-sub" id="kpi-gap-sub">to bridge</div>
+          </div>
+        </div>
+
+        <!-- Two-column grid -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+
+          <!-- SIP Breakdown -->
+          <div class="card">
+            <div class="card-title"><span class="icon">📊</span> Goal-wise SIP breakdown</div>
+            <div id="sip-breakdown"></div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);display:flex;justify-content:space-between;font-size:12px;">
+              <span style="color:var(--muted);">Total SIP</span>
+              <span style="font-family:'Space Mono',monospace;font-weight:700;color:var(--text);" id="sip-total-display">—</span>
+            </div>
+          </div>
+
+          <!-- Asset Allocation -->
+          <div class="card">
+            <div class="card-title"><span class="icon">🎯</span> Asset allocation</div>
+            <div class="alloc-bar" id="alloc-bar"></div>
+            <div class="alloc-legend" id="alloc-legend"></div>
+            <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.5;" id="alloc-note"></div>
+          </div>
+
+        </div>
+
+        <!-- Tax Savings -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-title"><span class="icon">💰</span> Tax savings opportunities</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;" id="tax-grid"></div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;color:var(--muted);">Total annual tax saving potential</div>
+              <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--green-light);" id="tax-total">—</div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);text-align:right;" id="regime-note"></div>
+          </div>
+        </div>
+
+        <!-- Insurance Gaps -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-title"><span class="icon">🛡️</span> Insurance gaps</div>
+          <div id="insurance-gaps"></div>
+        </div>
+
+        <!-- Money Health Score -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-title"><span class="icon">❤️</span> Money health score</div>
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+            <div style="text-align:center;min-width:80px;">
+              <div style="font-family:'Space Mono',monospace;font-size:36px;font-weight:700;" id="overall-score">—</div>
+              <div style="font-size:11px;color:var(--muted);">/ 100</div>
+            </div>
+            <div style="flex:1;">
+              <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+                <div id="overall-score-bar" style="height:100%;border-radius:3px;transition:width 1s ease;"></div>
+              </div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="score-label-text"></div>
+            </div>
+          </div>
+          <div class="score-grid" id="score-grid"></div>
+        </div>
+
+        <!-- FIRE Timeline -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-title"><span class="icon">🗓️</span> FIRE milestone roadmap</div>
+          <div class="timeline" id="timeline"></div>
+        </div>
+
+        <!-- AI Chat -->
+        <div class="card">
+          <div class="card-title"><span class="icon">🤖</span> Ask your AI Money Mentor</div>
+          <div class="quick-asks" id="quick-asks">
+            <button class="quick-btn" onclick="quickAsk('How can I increase my savings rate to reach FIRE faster?')">Increase savings rate</button>
+            <button class="quick-btn" onclick="quickAsk('Explain the 4% safe withdrawal rule for India')">4% SWR explained</button>
+            <button class="quick-btn" onclick="quickAsk('Should I choose old or new tax regime?')">Old vs new regime</button>
+            <button class="quick-btn" onclick="quickAsk('How do I do annual SIP step-up correctly?')">SIP step-up strategy</button>
+            <button class="quick-btn" onclick="quickAsk('What is Coast FIRE and have I achieved it?')">Coast FIRE check</button>
+          </div>
+          <div class="chat-area">
+            <div class="chat-messages" id="chat-messages">
+              <div class="msg">
+                <div class="msg-avatar ai">ET</div>
+                <div class="msg-body md-content">Hello! I'm your ET Money Mentor. Generate your FIRE plan first, then ask me anything — tax planning, SIP strategy, insurance, or how to reach FIRE faster. I use your profile for personalized advice.</div>
+              </div>
+            </div>
+            <div class="chat-footer">
+              <input class="chat-input" id="chat-input" type="text" placeholder="Ask about your FIRE plan…" onkeydown="if(event.key==='Enter') sendMessage()">
+              <button class="btn-ask" id="ask-btn" onclick="sendMessage()">Ask ↗</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:8000';
+  let currentProfile = null;
+  let apiAvailable = false;
+
+  // ── Helpers ──
+  const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+  const fmtK = n => n >= 10000000 ? '₹' + (n/10000000).toFixed(2) + 'Cr' : n >= 100000 ? '₹' + (n/100000).toFixed(1) + 'L' : fmt(n);
+  const pct = n => Math.round(n) + '%';
+  const $ = id => document.getElementById(id);
+
+  // ── Markdown renderer ──
+  function renderMarkdown(text) {
+    if (!text) return '';
+    // Escape HTML first to prevent XSS
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Block-level: headings
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+    // Horizontal rule
+    html = html.replace(/^---+$/gm, '<hr>');
+
+    // Blockquote
+    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+    // Unordered lists — collect consecutive bullet lines
+    html = html.replace(/(^[\*\-] .+$(\n^[\*\-] .+$)*)/gm, match => {
+      const items = match.split('\n').map(line =>
+        '<li>' + line.replace(/^[\*\-] /, '') + '</li>'
+      ).join('');
+      return '<ul>' + items + '</ul>';
+    });
+
+    // Ordered lists
+    html = html.replace(/(^\d+\. .+$(\n^\d+\. .+$)*)/gm, match => {
+      const items = match.split('\n').map(line =>
+        '<li>' + line.replace(/^\d+\. /, '') + '</li>'
+      ).join('');
+      return '<ol>' + items + '</ol>';
+    });
+
+    // Inline: bold + italic (***), bold (**), italic (*), code (`)
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Paragraphs: wrap lines that aren't already block elements
+    const blockTags = /^<(h[1-3]|ul|ol|li|hr|blockquote)/;
+    html = html.split('\n').map(line => {
+      if (!line.trim()) return '';           // blank line = gap between paras
+      if (blockTags.test(line.trim())) return line; // already a block
+      return '<p>' + line + '</p>';
+    }).join('\n');
+
+    return html;
+  }
+
+  // ── API health check ──
+  async function checkApi() {
+    try {
+      const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(2000) });
+      if (r.ok) {
+        const d = await r.json();
+        apiAvailable = true;
+        $('api-badge').textContent = d.rag_ready ? '● API: connected + RAG ready' : '● API: connected (RAG loading)';
+        $('api-badge').className = 'api-badge connected';
+        $('api-note').style.display = 'none';
+      }
+    } catch {
+      $('api-badge').textContent = '● API: offline (local mode)';
+    }
+  }
+
+  // ── Read form ──
+  function getProfile() {
+    return {
+      age: +$('age').value,
+      fire_age: +$('fire_age').value,
+      monthly_income: +$('monthly_income').value,
+      monthly_expenses: +$('monthly_expenses').value,
+      existing_investments: +$('existing_investments').value,
+      current_monthly_sip: +$('current_monthly_sip').value,
+      epf_ppf_balance: +$('epf_ppf_balance').value,
+      tax_bracket: +$('tax_bracket').value,
+      home_goal_amount: +$('home_goal_amount').value || 0,
+      home_goal_year: +$('home_goal_year').value || 2030,
+      edu_goal_amount: +$('edu_goal_amount').value || 0,
+      edu_goal_year: +$('edu_goal_year').value || 2038,
+    };
+  }
+
+  // ── Local calculation fallback ──
+  function calcLocal(p) {
+    const r = 0.12 / 12, inf = 0.06;
+    const years = p.fire_age - p.age, months = years * 12;
+    const curYear = 2026;
+    const futureExp = p.monthly_expenses * Math.pow(1 + inf, years);
+    const annualExp = futureExp * 12;
+    const corpus = annualExp * 25;
+    const futureExisting = (p.existing_investments + p.epf_ppf_balance) * Math.pow(1.12, years);
+    const remaining = Math.max(0, corpus - futureExisting);
+    const sipTotal = months > 0 ? remaining * r / (Math.pow(1 + r, months) - 1) : remaining / months;
+
+    function goalSip(amt, yr) {
+      const mo = Math.max(6, (yr - curYear) * 12);
+      return amt * r / (Math.pow(1 + r, mo) - 1);
+    }
+    const homeSip = p.home_goal_amount ? goalSip(p.home_goal_amount, p.home_goal_year) : 0;
+    const eduSip = p.edu_goal_amount ? goalSip(p.edu_goal_amount, p.edu_goal_year) : 0;
+    const emFund = p.monthly_expenses * 6;
+    const emSip = emFund / 12;
+    const fireSip = Math.max(0, sipTotal - homeSip - eduSip);
+
+    const savingsRate = Math.round(((p.monthly_income - p.monthly_expenses) / p.monthly_income) * 100 * 10) / 10;
+    const eqPct = Math.min(85, Math.max(45, 110 - p.age));
+    const goldPct = 10, debtPct = 100 - eqPct - goldPct;
+    const tax = p.tax_bracket / 100;
+
+    const milestones = [
+      { year: curYear, age: p.age, event: 'FIRE journey starts', desc: 'Build 6-month emergency fund, get term + health insurance, start SIPs, max 80C + 80CCD.', phase: 'foundation' },
+      { year: curYear + 2, age: p.age + 2, event: 'First SIP step-up', desc: `Increase SIPs 10-15% with salary hike. Target ${fmtK(sipTotal * 1.15)}/mo total.`, phase: 'foundation' },
+      { year: curYear + 5, age: p.age + 5, event: '1× annual income invested', desc: 'Add mid/small-cap and international fund exposure. Review insurance cover.', phase: 'accumulation' },
+    ];
+    if (p.home_goal_amount) milestones.push({ year: p.home_goal_year, age: p.age + (p.home_goal_year - curYear), event: 'Home purchase', desc: `Deploy ${fmtK(p.home_goal_amount)} home corpus. Reassess FIRE SIPs.`, phase: 'goal' });
+    if (p.edu_goal_amount) milestones.push({ year: p.edu_goal_year, age: p.age + (p.edu_goal_year - curYear), event: 'Education corpus ready', desc: `Move ${fmtK(p.edu_goal_amount)} to low-risk debt funds.`, phase: 'goal' });
+    milestones.push({ year: curYear + Math.floor(years / 2), age: p.age + Math.floor(years / 2), event: 'Mid-FIRE portfolio check', desc: 'Should have ~40% of corpus. Shift equity 2%. Review insurance adequacy.', phase: 'accumulation' });
+    milestones.push({ year: p.fire_age - 3, age: p.fire_age - 3, event: 'Pre-FIRE glide path begins', desc: 'Shift to 50% equity / 40% debt / 10% gold. Build 2-year cash buffer.', phase: 'pre_fire' });
+    milestones.push({ year: p.fire_age, age: p.fire_age, event: '🎯 FIRE achieved!', desc: `${fmtK(corpus)} corpus. Begin 4% SWP (~${fmtK(corpus * 0.04 / 12)}/month). Start bucket strategy.`, phase: 'fire' });
+    milestones.sort((a, b) => a.year - b.year);
+
+    const scores = {
+      emergency_preparedness: Math.min(100, Math.round((p.existing_investments / emFund) * 80)),
+      savings_rate: Math.min(100, Math.round(savingsRate * 2)),
+      investment_diversification: 60,
+      insurance_coverage: 35,
+      tax_efficiency: Math.min(100, Math.round((p.epf_ppf_balance / 150000) * 100)),
+      retirement_readiness: Math.min(100, Math.round((futureExisting / corpus) * 100))
+    };
+
+    return {
+      fire_corpus: Math.round(corpus),
+      monthly_sip_needed: Math.round(sipTotal),
+      fire_sip: Math.round(fireSip),
+      home_sip: Math.round(homeSip),
+      edu_sip: Math.round(eduSip),
+      emergency_sip: Math.round(emSip),
+      sip_gap: Math.round(Math.max(0, sipTotal - p.current_monthly_sip)),
+      savings_rate: savingsRate,
+      years_to_fire: years,
+      emergency_fund: Math.round(emFund),
+      goal_sips: { fire_corpus: Math.round(fireSip), home_purchase: Math.round(homeSip), child_education: Math.round(eduSip), emergency_fund: Math.round(emSip) },
+      asset_allocation: { equity: eqPct, debt: debtPct, gold: goldPct },
+      insurance_gaps: [
+        { type: 'term_life', severity: 'high', title: 'Term life insurance', message: `Recommended cover: ${fmtK(p.monthly_income * 144)} (12× annual income). Pure term plan costs ₹10K-20K/year for ₹1 Cr.`, action: 'Buy: HDFC Click2Protect, ICICI iProtect, or Tata AIA online' },
+        { type: 'health', severity: 'medium', title: 'Family health insurance', message: 'Employer cover is not portable and often insufficient. Get ₹10L+ personal family floater.', action: 'Compare on Policybazaar: Niva Bupa, Care Health, Star Health' },
+        { type: 'critical_illness', severity: 'low', title: 'Critical illness cover', message: '₹25L-50L recommended for cancer, heart attack, stroke — pays lump sum on diagnosis.', action: 'Add as rider to term plan for lowest cost' }
+      ],
+      tax_savings: {
+        section_80c: { max_limit: 150000, annual_saving: Math.round(150000 * tax) },
+        section_80ccd_nps: { max_limit: 50000, annual_saving: Math.round(50000 * tax) },
+        section_80d_health: { max_limit: 25000, annual_saving: Math.round(25000 * tax) },
+        total_potential_saving: Math.round(225000 * tax),
+        regime_recommendation: p.tax_bracket >= 30 ? 'old' : 'new'
+      },
+      milestones,
+      health_score: { overall: Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 6), breakdown: scores }
+    };
+  }
+
+  // ── Main calculate ──
+  async function calculatePlan() {
+    const btn = $('calc-btn');
+    btn.innerHTML = '<span class="loader"></span> Calculating…';
+    btn.classList.add('loading');
+
+    currentProfile = getProfile();
+    let data;
+
+    if (apiAvailable) {
+      try {
+        const r = await fetch(`${API_BASE}/full-plan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentProfile)
+        });
+        const json = await r.json();
+        data = json.calculations;
+        if (json.ai_narrative && json.ai_narrative.length > 50) {
+          $('ai-narrative-content').innerHTML = renderMarkdown(json.ai_narrative);
+          $('ai-narrative').style.display = 'block';
+        }
+      } catch {
+        data = calcLocal(currentProfile);
+      }
+    } else {
+      data = calcLocal(currentProfile);
+    }
+
+    renderResults(data, currentProfile);
+
+    btn.innerHTML = 'Generate FIRE Plan';
+    btn.classList.remove('loading');
+  }
+
+  // ── Render ──
+  function renderResults(d, p) {
+    $('welcome-state').style.display = 'none';
+    $('results-state').style.display = 'block';
+    $('results-state').classList.add('visible');
+
+    $('fire-tag').textContent = `FIRE in ${d.years_to_fire} years · Age ${p.fire_age}`;
+
+    $('kpi-corpus').textContent = fmtK(d.fire_corpus);
+    $('kpi-corpus').className = 'kpi-value green';
+    $('kpi-corpus-sub').textContent = `at age ${p.fire_age}`;
+    $('kpi-sip').textContent = fmtK(d.monthly_sip_needed) + '/mo';
+    $('kpi-sip').className = 'kpi-value ' + (d.monthly_sip_needed > p.current_monthly_sip * 1.5 ? 'amber' : 'green');
+    $('kpi-savings').textContent = pct(d.savings_rate);
+    $('kpi-savings').className = 'kpi-value ' + (d.savings_rate >= 40 ? 'green' : d.savings_rate >= 25 ? 'amber' : 'red');
+    $('kpi-gap').textContent = d.sip_gap > 0 ? fmtK(d.sip_gap) + '/mo' : 'None ✓';
+    $('kpi-gap').className = 'kpi-value ' + (d.sip_gap > 0 ? 'red' : 'green');
+    $('kpi-gap-sub').textContent = d.sip_gap > 0 ? 'increase SIPs' : 'on track!';
+
+    const sipNames = {
+      fire_corpus: { label: 'Retirement / FIRE corpus', detail: `Equity-heavy · ${d.years_to_fire} years · 12% CAGR` },
+      home_purchase: { label: 'Home purchase', detail: `By ${p.home_goal_year} · ${Math.max(0, p.home_goal_year - 2026)} years away` },
+      child_education: { label: "Child's education", detail: `By ${p.edu_goal_year} · Flexi-cap + ELSS` },
+      emergency_fund: { label: 'Emergency fund', detail: `${fmtK(d.emergency_fund)} target · build in 12 months` },
+    };
+    let sipHTML = '', sipTotal = 0;
+    for (const [k, v] of Object.entries(d.goal_sips)) {
+      sipTotal += v;
+      sipHTML += `<div class="sip-row">
+        <div><div class="sip-name">${sipNames[k]?.label || k}</div><div class="sip-detail">${sipNames[k]?.detail || ''}</div></div>
+        <div style="text-align:right;"><div class="sip-amount">${fmtK(v)}</div><div class="sip-sub">/month</div></div>
+      </div>`;
+    }
+    $('sip-breakdown').innerHTML = sipHTML;
+    $('sip-total-display').textContent = fmtK(sipTotal) + '/month';
+
+    const { equity, debt, gold } = d.asset_allocation;
+    $('alloc-bar').innerHTML = `
+      <div class="alloc-seg" style="width:${equity}%;background:#1a9e6e;"></div>
+      <div class="alloc-seg" style="width:${debt}%;background:#388bfd;"></div>
+      <div class="alloc-seg" style="width:${gold}%;background:#d29922;"></div>`;
+    $('alloc-legend').innerHTML = `
+      <span><span class="alloc-dot" style="background:#1a9e6e;"></span>Equity ${equity}%</span>
+      <span><span class="alloc-dot" style="background:#388bfd;"></span>Debt ${debt}%</span>
+      <span><span class="alloc-dot" style="background:#d29922;"></span>Gold ${gold}%</span>`;
+    $('alloc-note').innerHTML = `<span style="color:var(--green-light);">At age ${p.age}.</span> Shift 2% equity → debt every 5 years as you approach FIRE. Post-FIRE: 40% equity / 50% debt / 10% gold.`;
+
+    const ts = d.tax_savings;
+    $('tax-grid').innerHTML = `
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;">
+        <div style="font-size:11px;color:var(--muted);">Section 80C</div>
+        <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--green-light);margin:4px 0;">${fmt(ts.section_80c.annual_saving)}</div>
+        <div style="font-size:11px;color:var(--muted);">ELSS / PPF / EPF up to ₹1.5L</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;">
+        <div style="font-size:11px;color:var(--muted);">Section 80CCD — NPS</div>
+        <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--green-light);margin:4px 0;">${fmt(ts.section_80ccd_nps.annual_saving)}</div>
+        <div style="font-size:11px;color:var(--muted);">Additional ₹50K beyond 80C</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;">
+        <div style="font-size:11px;color:var(--muted);">Section 80D — Health</div>
+        <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--green-light);margin:4px 0;">${fmt(ts.section_80d_health.annual_saving)}</div>
+        <div style="font-size:11px;color:var(--muted);">Self + family + parents</div>
+      </div>`;
+    $('tax-total').textContent = fmt(ts.total_potential_saving) + ' / year';
+    $('regime-note').innerHTML = `Recommended regime: <strong style="color:var(--green-light);">${ts.regime_recommendation.toUpperCase()}</strong><br>Max deductions justify old regime`;
+
+    const sevColor = { high: 'var(--red)', medium: 'var(--amber)', low: 'var(--blue)' };
+    $('insurance-gaps').innerHTML = d.insurance_gaps.map(g => `
+      <div class="gap-card">
+        <div class="gap-dot" style="background:${sevColor[g.severity]};"></div>
+        <div>
+          <div class="gap-title">${g.title} <span style="font-size:11px;color:${sevColor[g.severity]};text-transform:uppercase;font-family:'Space Mono',monospace;margin-left:6px;">${g.severity}</span></div>
+          <div class="gap-msg">${g.message}</div>
+          <div class="gap-action">→ ${g.action}</div>
+        </div>
+      </div>`).join('');
+
+    const score = d.health_score;
+    const scoreColor = s => s >= 70 ? '#1a9e6e' : s >= 45 ? '#d29922' : '#f85149';
+    $('overall-score').textContent = score.overall;
+    $('overall-score').style.color = scoreColor(score.overall);
+    $('overall-score-bar').style.width = score.overall + '%';
+    $('overall-score-bar').style.background = scoreColor(score.overall);
+    $('score-label-text').textContent = score.overall >= 70 ? 'Strong financial health' : score.overall >= 45 ? 'Room to improve' : 'Action needed urgently';
+
+    const scoreLabels = {
+      emergency_preparedness: 'Emergency fund',
+      savings_rate: 'Savings rate',
+      investment_diversification: 'Diversification',
+      insurance_coverage: 'Insurance',
+      tax_efficiency: 'Tax efficiency',
+      retirement_readiness: 'Retirement'
+    };
+    $('score-grid').innerHTML = Object.entries(score.breakdown).map(([k, v]) => `
+      <div class="score-item">
+        <div class="score-item-label">${scoreLabels[k] || k}</div>
+        <div class="score-bar"><div class="score-bar-fill" style="width:${v}%;background:${scoreColor(v)};"></div></div>
+        <div class="score-num" style="color:${scoreColor(v)};">${v}</div>
+      </div>`).join('');
+
+    const phaseColors = {
+      foundation: '#388bfd',
+      accumulation: '#1a9e6e',
+      goal: '#d29922',
+      pre_fire: '#9e6e1a',
+      fire: '#0ef0a0'
+    };
+    $('timeline').innerHTML = d.milestones
+      .filter(m => m.age >= p.age)
+      .map(m => `
+      <div class="t-item">
+        <div class="t-dot" style="background:${phaseColors[m.phase] || '#388bfd'};color:#fff;">${m.age}</div>
+        <div class="t-content">
+          <div class="t-year">${m.year}</div>
+          <div class="t-event">${m.event}</div>
+          <div class="t-desc">${m.desc}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Chat ──
+  function quickAsk(q) {
+    $('chat-input').value = q;
+    sendMessage();
+  }
+
+  async function sendMessage() {
+    const input = $('chat-input');
+    const q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+
+    const msgs = $('chat-messages');
+
+    // User bubble
+    msgs.innerHTML += `<div class="msg">
+      <div class="msg-avatar user">U</div>
+      <div class="msg-body">${q.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+    </div>`;
+
+    // Typing bubble
+    const typingId = 'typing-' + Date.now();
+    msgs.innerHTML += `<div class="msg" id="${typingId}">
+      <div class="msg-avatar ai">ET</div>
+      <div class="msg-body typing">Thinking…</div>
+    </div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+
+    $('ask-btn').disabled = true;
+
+    let answer = '';
+    if (apiAvailable) {
+      try {
+        const payload = { question: q };
+        if (currentProfile) payload.profile = currentProfile;
+        const r = await fetch(`${API_BASE}/ask`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await r.json();
+        answer = json.answer || 'Sorry, I could not generate a response.';
+      } catch {
+        answer = 'Backend unavailable. Please start the FastAPI server with your ANTHROPIC_API_KEY to enable AI responses.';
+      }
+    } else {
+      answer = 'The AI mentor requires the FastAPI backend running with a Groq API key.\n\nStart it with:\n\n`cd backend && uvicorn main:app --reload`\n\nThen set: `export GROQ_API_KEY=gsk_...`\n\nGet a free key at console.groq.com';
+    }
+
+    // Render answer as formatted markdown
+    const bubble = document.getElementById(typingId).querySelector('.msg-body');
+    bubble.classList.remove('typing');
+    bubble.classList.add('md-content');
+    bubble.innerHTML = renderMarkdown(answer);
+
+    msgs.scrollTop = msgs.scrollHeight;
+    $('ask-btn').disabled = false;
+  }
+
+  // ── Init ──
+  checkApi();
+  setInterval(checkApi, 15000);
+</script>
+</body>
+</html>
