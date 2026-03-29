@@ -1,6 +1,6 @@
 # 🔥 ET Money Mentor — FIRE Path Planner
 
-**ET AI Hackathon 2026 · Problem Statement #9 · AI Money Mentor**
+
 
 A full-stack AI-powered FIRE (Financial Independence, Retire Early) planning tool for Indian investors. Built with a FastAPI + LangChain RAG backend and a single-file vanilla HTML/CSS/JS frontend.
 
